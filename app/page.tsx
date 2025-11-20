@@ -412,6 +412,7 @@ function HomeContent() {
         gachaConfig={gachaConfig}
         remainingCount={remainingCount}
         loginDaysIncreased={loginDaysIncreased}
+        loginBonusConfig={loginBonusConfig}
       />
 
       <Modal
