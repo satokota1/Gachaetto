@@ -10,6 +10,7 @@ interface GachaResultModalProps {
   result: GachaResult | null;
   gachaConfig: GachaConfig | null;
   remainingCount: number;
+  loginDaysIncreased?: number | null;
 }
 
 export default function GachaResultModal({
@@ -18,6 +19,7 @@ export default function GachaResultModal({
   result,
   gachaConfig,
   remainingCount,
+  loginDaysIncreased,
 }: GachaResultModalProps) {
   const [showAnimation, setShowAnimation] = useState(false);
 
@@ -43,6 +45,17 @@ export default function GachaResultModal({
 
         {/* 結果表示 */}
         <div className={`transition-all duration-500 ${showAnimation ? 'opacity-0' : 'opacity-100'}`}>
+          {/* ログイン日数増加の表示 */}
+          {loginDaysIncreased !== null && (
+            <div className="mb-6 p-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg text-white animate-pulse">
+              <div className="text-5xl mb-2">🎊</div>
+              <h3 className="text-2xl font-bold mb-1">連続ログイン日数が増えました！</h3>
+              <p className="text-4xl font-bold">
+                {loginDaysIncreased} 日
+              </p>
+            </div>
+          )}
+          
           <div className="mb-6">
             <div className="text-4xl mb-2">🎉</div>
             <h2 className="text-3xl font-bold mb-2">{result.itemName}</h2>

@@ -51,6 +51,7 @@ function HomeContent() {
   const [isSpinning, setIsSpinning] = useState(false);
   const [shareUrl, setShareUrl] = useState<string>('');
   const [consecutiveLoginDays, setConsecutiveLoginDays] = useState<number>(0);
+  const [loginDaysIncreased, setLoginDaysIncreased] = useState<number | null>(null);
 
   // URLクエリパラメータからガチャ設定を読み込む
   const loadConfigFromUrl = useCallback((): GachaConfig | null => {
@@ -217,11 +218,30 @@ function HomeContent() {
     const result = executeGacha(gachaConfig, loginBonusConfig || undefined, isBonusDay);
 
     // 回数を更新
+    let newLoginDays = consecutiveLoginDays;
     if (user) {
       const newCount = await updateTodayGachaCount(user.uid);
       setTodayGachaCount(newCount);
       // DBに保存
-      await saveGachaResult(user.uid, result);
+      try {
+        await saveGachaResult(user.uid, result);
+      } catch (error) {
+        console.error('ガチャ結果の保存エラー:', error);
+        // エラーが発生しても続行
+      }
+      
+      // 連続ログイン日数を再取得して、増加を確認
+      try {
+        const updatedDays = await updateConsecutiveLoginDays(user.uid);
+        if (updatedDays > consecutiveLoginDays) {
+          setLoginDaysIncreased(updatedDays);
+          newLoginDays = updatedDays;
+        }
+        setConsecutiveLoginDays(updatedDays);
+      } catch (error) {
+        console.error('ログイン日数の更新エラー:', error);
+        // エラーが発生しても続行
+      }
     } else {
       const newCount = updateTodayGachaCountInStorage();
       setTodayGachaCount(newCount);
@@ -384,10 +404,14 @@ function HomeContent() {
 
       <GachaResultModal
         isOpen={isResultModalOpen}
-        onClose={() => setIsResultModalOpen(false)}
+        onClose={() => {
+          setIsResultModalOpen(false);
+          setLoginDaysIncreased(null); // モーダルを閉じる際にリセット
+        }}
         result={gachaResult}
         gachaConfig={gachaConfig}
         remainingCount={remainingCount}
+        loginDaysIncreased={loginDaysIncreased}
       />
 
       <Modal

@@ -159,7 +159,11 @@ service cloud.firestore {
     
     // ガチャ結果（自分の結果のみ読み書き可能）
     match /gachaResults/{resultId} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      // 読み取り: 自分の結果のみ
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      // 書き込み: 新規作成時はrequest.resource.data、更新時はresource.dataを使用
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }
     
     // ユーザー名マッピング（全員が読み取り可能、認証済みユーザーのみ書き込み可能）
