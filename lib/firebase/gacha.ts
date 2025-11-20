@@ -13,15 +13,17 @@ import {
   addDoc,
   updateDoc
 } from 'firebase/firestore';
-import { db } from './config';
+import { db, initializeFirebase } from './config';
 import { GachaConfig, GachaResult, UserGachaData, LoginBonusConfig } from '@/types/gacha';
 
 // dbが初期化されているかチェック
 const ensureDb = () => {
-  if (!db) {
+  // 初期化を試みる
+  const { db: dbInstance } = initializeFirebase();
+  if (!dbInstance) {
     throw new Error('Firebase is not initialized. Please check your environment variables.');
   }
-  return db;
+  return dbInstance;
 };
 
 // ユーザーのガチャ設定を保存

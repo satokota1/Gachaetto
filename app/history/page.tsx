@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { User, onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/lib/firebase/config';
+import { auth, initializeFirebase } from '@/lib/firebase/config';
 import { GachaResult } from '@/types/gacha';
 import { getUserGachaHistory } from '@/lib/firebase/gacha';
 import { getGachaHistoryFromStorage } from '@/lib/storage';
@@ -14,15 +14,18 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Firebase初期化を試みる
+    const { auth: authInstance } = initializeFirebase();
+    
     // Firebaseが初期化されていない場合は、ストレージからデータを取得
-    if (!auth) {
+    if (!authInstance) {
       const results = getGachaHistoryFromStorage();
       setHistory(results);
       setLoading(false);
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
       setUser(user);
       setLoading(true);
 

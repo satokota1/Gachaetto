@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { User, onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/lib/firebase/config';
+import { auth, initializeFirebase } from '@/lib/firebase/config';
 import Header from '@/components/Header';
 import GachaConfigModal from '@/components/GachaConfigModal';
 import GachaResultModal from '@/components/GachaResultModal';
@@ -34,8 +34,11 @@ export default function Home() {
   const [isSpinning, setIsSpinning] = useState(false);
 
   useEffect(() => {
+    // Firebase初期化を試みる
+    const { auth: authInstance } = initializeFirebase();
+    
     // Firebaseが初期化されていない場合は、ストレージからデータを取得
-    if (!auth) {
+    if (!authInstance) {
       const config = getGachaConfigFromStorage();
       const bonusConfig = getLoginBonusConfigFromStorage();
       const count = getTodayGachaCountFromStorage();
@@ -46,7 +49,7 @@ export default function Home() {
     }
 
     // 認証状態の監視
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
       setUser(user);
       if (user) {
         // ログインユーザーの場合、DBからデータを取得
