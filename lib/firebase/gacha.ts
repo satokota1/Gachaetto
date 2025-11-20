@@ -225,3 +225,81 @@ export const updateTodayGachaCount = async (userId: string): Promise<number> => 
   return todayCount;
 };
 
+// 共有設定を保存して短いIDを返す
+export const saveSharedConfig = async (
+  config: GachaConfig,
+  bonusConfig?: LoginBonusConfig | null
+): Promise<string> => {
+  const firestoreDb = ensureDb();
+  const sharedConfigsRef = collection(firestoreDb, 'sharedConfigs');
+  
+  const dataToSave: any = {
+    gachaConfig: {
+      title: config.title,
+      items: config.items.map(item => ({
+        name: item.name,
+        probability: item.probability,
+      })),
+      dailyLimit: config.dailyLimit,
+    },
+    createdAt: Timestamp.now(),
+  };
+  
+  if (bonusConfig) {
+    dataToSave.bonusConfig = {
+      requiredDays: bonusConfig.requiredDays,
+      bonusGachaName: bonusConfig.bonusGachaName,
+      bonusItems: bonusConfig.bonusItems.map(item => ({
+        name: item.name,
+        probability: item.probability,
+      })),
+      bonusDailyLimit: bonusConfig.bonusDailyLimit,
+    };
+  }
+  
+  const docRef = await addDoc(sharedConfigsRef, dataToSave);
+  return docRef.id;
+};
+
+// 共有設定をIDから取得
+export const getSharedConfig = async (shareId: string): Promise<{ config: GachaConfig | null; bonusConfig: LoginBonusConfig | null }> => {
+  const firestoreDb = ensureDb();
+  const sharedConfigRef = doc(firestoreDb, 'sharedConfigs', shareId);
+  const docSnap = await getDoc(sharedConfigRef);
+  
+  if (!docSnap.exists()) {
+    return { config: null, bonusConfig: null };
+  }
+  
+  const data = docSnap.data();
+  const itemsWithIds = data.gachaConfig.items.map((item: any, index: number) => ({
+    id: (index + 1).toString(),
+    name: item.name || '',
+    probability: item.probability || 0,
+  }));
+  
+  const config: GachaConfig = {
+    title: data.gachaConfig.title,
+    items: itemsWithIds,
+    dailyLimit: data.gachaConfig.dailyLimit,
+  };
+  
+  let bonusConfig: LoginBonusConfig | null = null;
+  if (data.bonusConfig) {
+    const bonusItemsWithIds = data.bonusConfig.bonusItems.map((item: any, index: number) => ({
+      id: (index + 1).toString(),
+      name: item.name || '',
+      probability: item.probability || 0,
+    }));
+    
+    bonusConfig = {
+      requiredDays: data.bonusConfig.requiredDays,
+      bonusGachaName: data.bonusConfig.bonusGachaName,
+      bonusItems: bonusItemsWithIds,
+      bonusDailyLimit: data.bonusConfig.bonusDailyLimit,
+    };
+  }
+  
+  return { config, bonusConfig };
+};
+

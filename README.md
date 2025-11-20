@@ -171,6 +171,12 @@ service cloud.firestore {
       allow read: if true;
       allow write: if request.auth != null;
     }
+    
+    // 共有設定（全員が読み取り可能、認証済みユーザーのみ書き込み可能）
+    match /sharedConfigs/{shareId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
   }
 }
 ```

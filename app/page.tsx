@@ -23,6 +23,8 @@ import {
   saveGachaResult,
   updateTodayGachaCount,
   updateConsecutiveLoginDays,
+  saveSharedConfig,
+  getSharedConfig,
 } from '@/lib/firebase/gacha';
 
 // デフォルトのガチャ設定
@@ -54,7 +56,22 @@ function HomeContent() {
   const [loginDaysIncreased, setLoginDaysIncreased] = useState<number | null>(null);
 
   // URLクエリパラメータからガチャ設定を読み込む
-  const loadConfigFromUrl = useCallback((): { config: GachaConfig | null; bonusConfig: LoginBonusConfig | null } => {
+  const loadConfigFromUrl = useCallback(async (): Promise<{ config: GachaConfig | null; bonusConfig: LoginBonusConfig | null }> => {
+    // 短縮URL（shareパラメータ）を優先
+    const shareId = searchParams.get('share');
+    if (shareId) {
+      try {
+        const { auth: authInstance } = initializeFirebase();
+        if (authInstance) {
+          const sharedData = await getSharedConfig(shareId);
+          return sharedData;
+        }
+      } catch (error) {
+        console.error('Failed to load shared config:', error);
+      }
+    }
+    
+    // 従来のconfigパラメータ（後方互換性のため残す）
     const configParam = searchParams.get('config');
     if (!configParam) return { config: null, bonusConfig: null };
 
@@ -103,10 +120,22 @@ function HomeContent() {
     return { config: null, bonusConfig: null };
   }, [searchParams]);
 
-  // ガチャ設定をURLにエンコード
-  const generateShareUrl = (config: GachaConfig, bonusConfig?: LoginBonusConfig | null): string => {
+  // ガチャ設定をURLにエンコード（短縮URLを生成）
+  const generateShareUrl = async (config: GachaConfig, bonusConfig?: LoginBonusConfig | null): Promise<string> => {
     if (typeof window === 'undefined') return '';
     
+    try {
+      const { auth: authInstance } = initializeFirebase();
+      if (authInstance) {
+        // Firestoreに保存して短いIDを取得
+        const shareId = await saveSharedConfig(config, bonusConfig);
+        return `${window.location.origin}?share=${shareId}`;
+      }
+    } catch (error) {
+      console.error('Failed to save shared config, falling back to long URL:', error);
+    }
+    
+    // Firestoreが使えない場合は従来の長いURLを返す（後方互換性）
     const shareableConfig: any = {
       title: config.title,
       items: config.items.map(item => ({
@@ -116,7 +145,6 @@ function HomeContent() {
       dailyLimit: config.dailyLimit,
     };
     
-    // ボーナス設定がある場合は含める
     if (bonusConfig) {
       shareableConfig.bonusConfig = {
         requiredDays: bonusConfig.requiredDays,
@@ -134,91 +162,110 @@ function HomeContent() {
   };
 
   useEffect(() => {
-    // URLから設定を読み込む（最優先）
-    const urlData = loadConfigFromUrl();
-    if (urlData.config) {
-      setGachaConfig(urlData.config);
-      if (urlData.bonusConfig) {
-        setLoginBonusConfig(urlData.bonusConfig);
-      }
-      // URLをクリーンアップ（オプション）
-      // router.replace('/');
-    }
-
-    // Firebase初期化を試みる
-    const { auth: authInstance } = initializeFirebase();
+    let isMounted = true;
+    let unsubscribe: (() => void) | null = null;
     
-    // Firebaseが初期化されていない場合は、ストレージからデータを取得
-    if (!authInstance) {
-      const config = urlData.config || getGachaConfigFromStorage();
-      const bonusConfig = urlData.bonusConfig || getLoginBonusConfigFromStorage();
-      const count = getTodayGachaCountFromStorage();
-      // ストレージに設定がない場合はデフォルト値を使用
-      setGachaConfig(config || getDefaultGachaConfig());
-      setLoginBonusConfig(bonusConfig);
-      setTodayGachaCount(count);
-      return;
-    }
+    // URLから設定を読み込む（最優先）
+    loadConfigFromUrl().then((urlData) => {
+      if (!isMounted) return;
+      
+      if (urlData.config) {
+        setGachaConfig(urlData.config);
+        if (urlData.bonusConfig) {
+          setLoginBonusConfig(urlData.bonusConfig);
+        }
+        // URLをクリーンアップ（オプション）
+        // router.replace('/');
+      }
 
-    // 認証状態の監視
-    const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
-      setUser(user);
-      if (user) {
-        // URLから設定がある場合はそれを優先
-        if (urlData.config) {
-          setGachaConfig(urlData.config);
-          if (urlData.bonusConfig) {
-            setLoginBonusConfig(urlData.bonusConfig);
-          }
-          setTodayGachaCount(0);
-          return;
-        }
-        
-        // ログインユーザーの場合、DBからデータを取得
-        const userData = await getUserGachaData(user.uid);
-        if (userData) {
-          // DBに設定がない場合はデフォルト値を使用
-          setGachaConfig(userData.gachaConfig || getDefaultGachaConfig());
-          setLoginBonusConfig(userData.loginBonusConfig || null);
-          setTodayGachaCount(userData.todayGachaCount || 0);
-          setConsecutiveLoginDays(userData.consecutiveLoginDays || 0);
-        } else {
-          // ユーザーデータがない場合はデフォルト値を使用
-          setGachaConfig(getDefaultGachaConfig());
-          setConsecutiveLoginDays(0);
-        }
-        // 連続ログイン日数を更新
-        const updatedDays = await updateConsecutiveLoginDays(user.uid);
-        setConsecutiveLoginDays(updatedDays);
-      } else {
-        // URLから設定がある場合はそれを優先
-        if (urlData.config) {
-          setGachaConfig(urlData.config);
-          if (urlData.bonusConfig) {
-            setLoginBonusConfig(urlData.bonusConfig);
-          }
-          setTodayGachaCount(0);
-          return;
-        }
-        
-        // 非ログインユーザーの場合、ストレージから取得
-        const config = getGachaConfigFromStorage();
-        const bonusConfig = getLoginBonusConfigFromStorage();
+      // Firebase初期化を試みる
+      const { auth: authInstance } = initializeFirebase();
+      
+      // Firebaseが初期化されていない場合は、ストレージからデータを取得
+      if (!authInstance) {
+        const config = urlData.config || getGachaConfigFromStorage();
+        const bonusConfig = urlData.bonusConfig || getLoginBonusConfigFromStorage();
         const count = getTodayGachaCountFromStorage();
         // ストレージに設定がない場合はデフォルト値を使用
         setGachaConfig(config || getDefaultGachaConfig());
         setLoginBonusConfig(bonusConfig);
         setTodayGachaCount(count);
+        return;
       }
+
+      // 認証状態の監視
+      unsubscribe = onAuthStateChanged(authInstance, async (user) => {
+        if (!isMounted) return;
+        
+        setUser(user);
+        if (user) {
+          // URLから設定がある場合はそれを優先
+          if (urlData.config) {
+            setGachaConfig(urlData.config);
+            if (urlData.bonusConfig) {
+              setLoginBonusConfig(urlData.bonusConfig);
+            }
+            setTodayGachaCount(0);
+            return;
+          }
+        
+          // ログインユーザーの場合、DBからデータを取得
+          const userData = await getUserGachaData(user.uid);
+          if (!isMounted) return;
+          
+          if (userData) {
+            // DBに設定がない場合はデフォルト値を使用
+            setGachaConfig(userData.gachaConfig || getDefaultGachaConfig());
+            setLoginBonusConfig(userData.loginBonusConfig || null);
+            setTodayGachaCount(userData.todayGachaCount || 0);
+            setConsecutiveLoginDays(userData.consecutiveLoginDays || 0);
+          } else {
+            // ユーザーデータがない場合はデフォルト値を使用
+            setGachaConfig(getDefaultGachaConfig());
+            setConsecutiveLoginDays(0);
+          }
+          // 連続ログイン日数を更新
+          const updatedDays = await updateConsecutiveLoginDays(user.uid);
+          if (isMounted) {
+            setConsecutiveLoginDays(updatedDays);
+          }
+        } else {
+          // URLから設定がある場合はそれを優先
+          if (urlData.config) {
+            setGachaConfig(urlData.config);
+            if (urlData.bonusConfig) {
+              setLoginBonusConfig(urlData.bonusConfig);
+            }
+            setTodayGachaCount(0);
+            return;
+          }
+        
+          // 非ログインユーザーの場合、ストレージから取得
+          const config = getGachaConfigFromStorage();
+          const bonusConfig = getLoginBonusConfigFromStorage();
+          const count = getTodayGachaCountFromStorage();
+          // ストレージに設定がない場合はデフォルト値を使用
+          setGachaConfig(config || getDefaultGachaConfig());
+          setLoginBonusConfig(bonusConfig);
+          setTodayGachaCount(count);
+        }
+      });
     });
 
-    return () => unsubscribe();
+    return () => {
+      isMounted = false;
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, [searchParams, loadConfigFromUrl]);
 
   // ガチャ設定が変更されたら共有URLを更新
   useEffect(() => {
     if (gachaConfig) {
-      setShareUrl(generateShareUrl(gachaConfig, loginBonusConfig));
+      generateShareUrl(gachaConfig, loginBonusConfig).then((url) => {
+        setShareUrl(url);
+      });
     }
   }, [gachaConfig, loginBonusConfig]);
 
