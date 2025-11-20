@@ -307,6 +307,14 @@ function HomeContent() {
             </div>
           )}
 
+          {gachaConfig && (
+            <div className="mt-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <p className="text-sm text-blue-700 dark:text-blue-300 text-center">
+                💡 <span className="font-semibold">共有機能:</span> 共有ボタンを押すと、現在のガチャ設定（タイトル・アイテム・確率・日次制限）をURLで共有できます
+              </p>
+            </div>
+          )}
+
           <p className="text-sm text-gray-500 dark:text-gray-400 text-center max-w-md">
             ガチャ設定や結果の保存、ログインボーナスを使用するにはログインが必要です。
           </p>

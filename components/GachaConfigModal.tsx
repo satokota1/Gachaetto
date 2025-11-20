@@ -182,22 +182,27 @@ export default function GachaConfigModal({
     }
 
     // 保存
-    if (user) {
-      // ログインユーザーはDBに保存
-      await saveGachaConfig(user.uid, config);
-      if (bonusConfig) {
-        await saveLoginBonusConfig(user.uid, bonusConfig);
+    try {
+      if (user) {
+        // ログインユーザーはDBに保存
+        await saveGachaConfig(user.uid, config);
+        if (bonusConfig) {
+          await saveLoginBonusConfig(user.uid, bonusConfig);
+        }
+      } else {
+        // 非ログインユーザーはストレージに保存
+        saveGachaConfigToStorage(config);
+        if (bonusConfig) {
+          saveLoginBonusConfigToStorage(bonusConfig);
+        }
       }
-    } else {
-      // 非ログインユーザーはストレージに保存
-      saveGachaConfigToStorage(config);
-      if (bonusConfig) {
-        saveLoginBonusConfigToStorage(bonusConfig);
-      }
-    }
 
-    onSave(config, bonusConfig);
-    onClose();
+      onSave(config, bonusConfig);
+      onClose();
+    } catch (error) {
+      console.error('保存エラー:', error);
+      setError('設定の保存に失敗しました。もう一度お試しください。');
+    }
   };
 
   const totalProbability = items.reduce((sum, item) => sum + item.probability, 0);
