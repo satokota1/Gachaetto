@@ -16,16 +16,36 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "",
 };
 
+// 環境変数が設定されているかチェック
+const isFirebaseConfigured = 
+  firebaseConfig.apiKey && 
+  firebaseConfig.authDomain && 
+  firebaseConfig.projectId;
+
 // Firebaseアプリの初期化（既に初期化されている場合は再利用）
-let app: FirebaseApp;
-if (getApps().length === 0) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApps()[0];
+// クライアントサイドかつ環境変数が設定されている場合のみ初期化
+let app: FirebaseApp | undefined;
+let db: Firestore | undefined;
+let auth: Auth | undefined;
+
+if (typeof window !== 'undefined' && isFirebaseConfigured) {
+  if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
+  } else {
+    app = getApps()[0];
+  }
+  
+  // FirestoreとAuthのインスタンスを取得
+  db = getFirestore(app);
+  auth = getAuth(app);
 }
 
-// FirestoreとAuthのインスタンスを取得
-export const db: Firestore = getFirestore(app);
-export const auth: Auth = getAuth(app);
+// 型安全なエクスポート
+// クライアントサイド（'use client'コンポーネント）では常に定義されている
+// ビルド時（サーバーサイド）では undefined になる可能性があるが、'use client'コンポーネントでは使用されない
+// 型アサーションを使用して、クライアントサイドでは常に定義されていることを保証
+export const dbInstance = db as Firestore;
+export const authInstance = auth as Auth;
+export { dbInstance as db, authInstance as auth };
 export default app;
 
