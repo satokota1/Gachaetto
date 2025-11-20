@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { auth, initializeFirebase } from '@/lib/firebase/config';
 import Header from '@/components/Header';
@@ -36,6 +37,8 @@ const getDefaultGachaConfig = (): GachaConfig => ({
 });
 
 export default function Home() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
@@ -44,14 +47,71 @@ export default function Home() {
   const [gachaResult, setGachaResult] = useState<GachaResult | null>(null);
   const [todayGachaCount, setTodayGachaCount] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string>('');
+
+  // URLクエリパラメータからガチャ設定を読み込む
+  const loadConfigFromUrl = (): GachaConfig | null => {
+    const configParam = searchParams.get('config');
+    if (!configParam) return null;
+
+    try {
+      const decoded = decodeURIComponent(configParam);
+      const config = JSON.parse(decoded);
+      
+      // バリデーション
+      if (config.title && config.items && Array.isArray(config.items) && config.dailyLimit) {
+        // IDを再生成
+        const itemsWithIds = config.items.map((item: any, index: number) => ({
+          id: (index + 1).toString(),
+          name: item.name || '',
+          probability: item.probability || 0,
+        }));
+        
+        return {
+          title: config.title,
+          items: itemsWithIds,
+          dailyLimit: config.dailyLimit,
+        };
+      }
+    } catch (error) {
+      console.error('Failed to parse config from URL:', error);
+    }
+    
+    return null;
+  };
+
+  // ガチャ設定をURLにエンコード
+  const generateShareUrl = (config: GachaConfig): string => {
+    if (typeof window === 'undefined') return '';
+    
+    const shareableConfig = {
+      title: config.title,
+      items: config.items.map(item => ({
+        name: item.name,
+        probability: item.probability,
+      })),
+      dailyLimit: config.dailyLimit,
+    };
+    
+    const encoded = encodeURIComponent(JSON.stringify(shareableConfig));
+    return `${window.location.origin}?config=${encoded}`;
+  };
 
   useEffect(() => {
+    // URLから設定を読み込む（最優先）
+    const urlConfig = loadConfigFromUrl();
+    if (urlConfig) {
+      setGachaConfig(urlConfig);
+      // URLをクリーンアップ（オプション）
+      // router.replace('/');
+    }
+
     // Firebase初期化を試みる
     const { auth: authInstance } = initializeFirebase();
     
     // Firebaseが初期化されていない場合は、ストレージからデータを取得
     if (!authInstance) {
-      const config = getGachaConfigFromStorage();
+      const config = urlConfig || getGachaConfigFromStorage();
       const bonusConfig = getLoginBonusConfigFromStorage();
       const count = getTodayGachaCountFromStorage();
       // ストレージに設定がない場合はデフォルト値を使用
@@ -65,6 +125,13 @@ export default function Home() {
     const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
       setUser(user);
       if (user) {
+        // URLから設定がある場合はそれを優先
+        if (urlConfig) {
+          setGachaConfig(urlConfig);
+          setTodayGachaCount(0);
+          return;
+        }
+        
         // ログインユーザーの場合、DBからデータを取得
         const userData = await getUserGachaData(user.uid);
         if (userData) {
@@ -79,6 +146,13 @@ export default function Home() {
         // 連続ログイン日数を更新
         await updateConsecutiveLoginDays(user.uid);
       } else {
+        // URLから設定がある場合はそれを優先
+        if (urlConfig) {
+          setGachaConfig(urlConfig);
+          setTodayGachaCount(0);
+          return;
+        }
+        
         // 非ログインユーザーの場合、ストレージから取得
         const config = getGachaConfigFromStorage();
         const bonusConfig = getLoginBonusConfigFromStorage();
@@ -91,7 +165,14 @@ export default function Home() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [searchParams]);
+
+  // ガチャ設定が変更されたら共有URLを更新
+  useEffect(() => {
+    if (gachaConfig) {
+      setShareUrl(generateShareUrl(gachaConfig));
+    }
+  }, [gachaConfig]);
 
   const handleSpin = async () => {
     if (!gachaConfig) {
@@ -154,6 +235,24 @@ export default function Home() {
     }
   };
 
+  const handleShare = async () => {
+    if (!gachaConfig) return;
+    
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      alert('共有URLをクリップボードにコピーしました！');
+    } catch (error) {
+      // フォールバック：テキストエリアを使用
+      const textarea = document.createElement('textarea');
+      textarea.value = shareUrl;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      alert('共有URLをクリップボードにコピーしました！');
+    }
+  };
+
   const remainingCount = gachaConfig ? gachaConfig.dailyLimit - todayGachaCount : 0;
 
   return (
@@ -164,12 +263,24 @@ export default function Home() {
         <h1 className="text-5xl font-bold mb-12 text-center">Gachaetto</h1>
 
         <div className="flex flex-col items-center gap-6">
-          <button
-            onClick={() => setIsConfigModalOpen(true)}
-            className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-lg font-semibold"
-          >
-            ガチャ設定
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setIsConfigModalOpen(true)}
+              className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-lg font-semibold"
+            >
+              ガチャ設定
+            </button>
+            {gachaConfig && (
+              <button
+                onClick={handleShare}
+                className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition text-lg font-semibold flex items-center gap-2"
+                title="このガチャ設定を友達に共有"
+              >
+                <span>📤</span>
+                <span>共有</span>
+              </button>
+            )}
+          </div>
 
           <button
             onClick={handleSpin}
