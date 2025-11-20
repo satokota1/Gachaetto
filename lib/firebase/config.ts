@@ -35,14 +35,33 @@ const initializeFirebase = () => {
 
   const firebaseConfig = getFirebaseConfig();
   
+  // デバッグ用：環境変数の状態を確認（本番環境では削除推奨）
+  if (typeof window !== 'undefined') {
+    console.log('Firebase環境変数の状態:', {
+      apiKey: firebaseConfig.apiKey ? `${firebaseConfig.apiKey.substring(0, 10)}...` : '未設定',
+      authDomain: firebaseConfig.authDomain || '未設定',
+      projectId: firebaseConfig.projectId || '未設定',
+      storageBucket: firebaseConfig.storageBucket || '未設定',
+      messagingSenderId: firebaseConfig.messagingSenderId || '未設定',
+      appId: firebaseConfig.appId ? `${firebaseConfig.appId.substring(0, 20)}...` : '未設定',
+    });
+  }
+  
   // 環境変数が設定されているかチェック
   const isFirebaseConfigured = 
     firebaseConfig.apiKey && 
+    firebaseConfig.apiKey.trim() !== '' &&
     firebaseConfig.authDomain && 
-    firebaseConfig.projectId;
+    firebaseConfig.authDomain.trim() !== '' &&
+    firebaseConfig.projectId &&
+    firebaseConfig.projectId.trim() !== '';
 
   if (!isFirebaseConfigured) {
-    console.warn('Firebase環境変数が設定されていません。環境変数を確認してください。');
+    console.warn('Firebase環境変数が設定されていません。環境変数を確認してください。', {
+      apiKey: !!firebaseConfig.apiKey,
+      authDomain: !!firebaseConfig.authDomain,
+      projectId: !!firebaseConfig.projectId,
+    });
     return { app: undefined, db: undefined, auth: undefined };
   }
 
