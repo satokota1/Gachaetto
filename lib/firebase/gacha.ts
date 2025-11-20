@@ -66,8 +66,21 @@ export const saveLoginBonusConfig = async (
 ): Promise<void> => {
   const firestoreDb = ensureDb();
   const userGachaRef = doc(firestoreDb, 'userGachaData', userId);
+  
+  // undefinedのフィールドを除外してFirestoreに保存
+  const configToSave: any = {
+    requiredDays: loginBonusConfig.requiredDays,
+    bonusGachaName: loginBonusConfig.bonusGachaName,
+    bonusItems: loginBonusConfig.bonusItems,
+  };
+  
+  // bonusDailyLimitがundefinedでない場合のみ追加
+  if (loginBonusConfig.bonusDailyLimit !== undefined) {
+    configToSave.bonusDailyLimit = loginBonusConfig.bonusDailyLimit;
+  }
+  
   await updateDoc(userGachaRef, {
-    loginBonusConfig,
+    loginBonusConfig: configToSave,
   });
 };
 

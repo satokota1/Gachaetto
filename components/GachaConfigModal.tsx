@@ -250,7 +250,7 @@ export default function GachaConfigModal({
                   placeholder="%"
                   min="0"
                   max="100"
-                  step="0.1"
+                  step="1"
                 />
                 <span className="w-8 text-sm">%</span>
                 {items.length > 1 && (
@@ -382,7 +382,7 @@ export default function GachaConfigModal({
                               placeholder="%"
                               min="0"
                               max="100"
-                              step="0.1"
+                              step="1"
                             />
                             <span className="w-8 text-sm">%</span>
                             <div className="flex flex-col items-center min-w-[100px]">
