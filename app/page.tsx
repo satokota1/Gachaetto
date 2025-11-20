@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { auth, initializeFirebase } from '@/lib/firebase/config';
@@ -50,7 +50,7 @@ export default function Home() {
   const [shareUrl, setShareUrl] = useState<string>('');
 
   // URLクエリパラメータからガチャ設定を読み込む
-  const loadConfigFromUrl = (): GachaConfig | null => {
+  const loadConfigFromUrl = useCallback((): GachaConfig | null => {
     const configParam = searchParams.get('config');
     if (!configParam) return null;
 
@@ -78,7 +78,7 @@ export default function Home() {
     }
     
     return null;
-  };
+  }, [searchParams]);
 
   // ガチャ設定をURLにエンコード
   const generateShareUrl = (config: GachaConfig): string => {
@@ -165,7 +165,7 @@ export default function Home() {
     });
 
     return () => unsubscribe();
-  }, [searchParams]);
+  }, [searchParams, loadConfigFromUrl]);
 
   // ガチャ設定が変更されたら共有URLを更新
   useEffect(() => {

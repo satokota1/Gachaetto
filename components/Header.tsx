@@ -140,7 +140,7 @@ export default function Header({ user, onAuthChange }: HeaderProps) {
                   type="button"
                   onClick={() => {
                     setIsLoginModalOpen(false);
-                    setEmail('');
+                    setUsername('');
                     setPassword('');
                     setError('');
                   }}
