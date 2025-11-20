@@ -96,11 +96,24 @@ export const saveGachaResult = async (
 ): Promise<string> => {
   const firestoreDb = ensureDb();
   const resultsRef = collection(firestoreDb, 'gachaResults');
-  const docRef = await addDoc(resultsRef, {
-    ...result,
+  
+  // undefinedのフィールドを除外してFirestoreに保存
+  const dataToSave: Record<string, any> = {
+    itemName: result.itemName,
+    itemProbability: result.itemProbability,
     userId,
     timestamp: Timestamp.now(),
-  });
+  };
+  
+  // オプショナルフィールドは値がある場合のみ追加
+  if (result.gachaConfigId) {
+    dataToSave.gachaConfigId = result.gachaConfigId;
+  }
+  if (result.isBonus !== undefined) {
+    dataToSave.isBonus = result.isBonus;
+  }
+  
+  const docRef = await addDoc(resultsRef, dataToSave);
   return docRef.id;
 };
 
