@@ -9,6 +9,17 @@ import {
 import { auth, initializeFirebase, db } from './config';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
+// 4桁のパスワードを6文字以上に変換（Firebaseの最小要件を満たすため）
+// 4桁の数字の場合、末尾に"pw"を追加して6文字にする
+const normalizePassword = (password: string): string => {
+  // 4桁の数字のみの場合、末尾に"pw"を追加
+  if (/^\d{4}$/.test(password)) {
+    return password + 'pw';
+  }
+  // それ以外はそのまま返す
+  return password;
+};
+
 // ユーザー名とパスワードでログイン
 export const signInWithUsername = async (username: string, password: string): Promise<User> => {
   // 初期化を試みる
@@ -29,8 +40,11 @@ export const signInWithUsername = async (username: string, password: string): Pr
   const userData = querySnapshot.docs[0].data();
   const email = userData.email;
 
+  // パスワードを正規化（4桁の場合は6文字以上に変換）
+  const normalizedPassword = normalizePassword(password);
+
   // メールアドレスとパスワードでFirebase Authenticationにログイン
-  const result = await signInWithEmailAndPassword(authInstance, email, password);
+  const result = await signInWithEmailAndPassword(authInstance, email, normalizedPassword);
   return result.user;
 };
 
