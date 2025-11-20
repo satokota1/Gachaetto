@@ -21,28 +21,46 @@
 npm install
 ```
 
-### 3. Firebaseプロジェクトの設定
+### 3. Firebaseプロジェクトの設定（ブラウザ上で実施）
 
-1. [Firebase Console](https://console.firebase.google.com/)で新しいプロジェクトを作成
-2. **Firestore Databaseを有効化**
-   - 「Firestore Database」を選択
-   - 「データベースを作成」をクリック
-   - テストモードで開始（後でセキュリティルールを設定）
-   - ロケーションを選択（推奨: asia-northeast1）
-3. **Authenticationを有効化**
-   - 「Authentication」を選択
-   - 「始める」をクリック
-   - 「Sign-in method」タブで「Google」を有効化
-   - プロジェクトのサポートメールを設定
-4. **プロジェクト設定からWebアプリの設定を取得**
-   - プロジェクト設定（⚙️アイコン）→「全般」タブ
-   - 「マイアプリ」セクションで「</>」アイコンをクリック
-   - アプリのニックネームを入力して「アプリを登録」
-   - 表示された設定値をコピー
+#### 3-1. Firebaseプロジェクトの作成
 
-### 4. 環境変数の設定
+1. [Firebase Console](https://console.firebase.google.com/)にアクセス
+2. 「プロジェクトを追加」をクリック
+3. プロジェクト名を入力して「続行」
+4. Google Analyticsの設定（任意）を選択して「プロジェクトを作成」
+5. プロジェクトの作成が完了するまで待機
 
-プロジェクトルートに `.env.local` ファイルを作成し、以下の環境変数を設定してください：
+#### 3-2. Firestore Databaseの有効化
+
+1. Firebase Consoleの左メニューから「Firestore Database」を選択
+2. 「データベースを作成」をクリック
+3. **セキュリティルール**：テストモードで開始を選択（後でセキュリティルールを設定します）
+4. **ロケーション**：`asia-northeast1`（東京）を選択
+5. 「有効にする」をクリック
+
+#### 3-3. Authenticationの有効化
+
+1. Firebase Consoleの左メニューから「Authentication」を選択
+2. 「始める」をクリック
+3. 「Sign-in method」タブを選択
+4. 「Google」をクリック
+5. 「有効にする」をオンにして、プロジェクトのサポートメールを設定
+6. 「保存」をクリック
+
+#### 3-4. Webアプリの設定を取得
+
+1. Firebase Consoleの左メニュー上部の⚙️アイコン（プロジェクト設定）をクリック
+2. 「全般」タブを選択
+3. 「マイアプリ」セクションまでスクロール
+4. 「</>」アイコン（ウェブアプリを追加）をクリック
+5. アプリのニックネームを入力（例：`gachaetto-web`）
+6. 「アプリを登録」をクリック
+7. 表示された設定値（`firebaseConfig`）をコピー
+
+#### 3-5. 環境変数の設定（ローカル開発用）
+
+プロジェクトルートに `.env.local` ファイルを作成し、Firebase Consoleで取得した設定値を設定してください：
 
 ```env
 NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
@@ -53,6 +71,8 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
 NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 ```
 
+**注意**：`.env.local` ファイルはGitにコミットしないでください（`.gitignore`に含まれています）
+
 ### 5. 開発サーバーの起動
 
 ```bash
@@ -61,9 +81,11 @@ npm run dev
 
 ブラウザで [http://localhost:3000](http://localhost:3000) を開いて確認してください。
 
-## Vercelへのデプロイ
+## Vercelへのデプロイ（ブラウザ上で実施）
 
 ### 1. GitHubリポジトリの作成
+
+まず、GitHubにリポジトリを作成してコードをプッシュしてください：
 
 ```bash
 git init
@@ -73,19 +95,58 @@ git remote add origin <your-github-repo-url>
 git push -u origin main
 ```
 
-### 2. Vercelとの連携
+### 2. Vercelとの連携（ブラウザ上で実施）
 
-1. [Vercel](https://vercel.com/)にログイン
-2. 「New Project」をクリック
-3. GitHubリポジトリを選択
-4. 環境変数を設定（Firebase設定値）
-5. 「Deploy」をクリック
+#### 2-1. Vercelアカウントの作成・ログイン
 
-これで、GitHubにプッシュするたびに自動的にVercelにデプロイされます。
+1. [Vercel](https://vercel.com/)にアクセス
+2. 「Sign Up」または「Log In」をクリック
+3. GitHubアカウントでログイン（推奨）
 
-### 3. Firestoreセキュリティルールの設定
+#### 2-2. プロジェクトのインポート
 
-Firebase Consoleの「Firestore Database」→「ルール」タブで、以下のルールを設定してください：
+1. Vercelダッシュボードで「Add New...」→「Project」をクリック
+2. GitHubリポジトリ一覧から、作成したリポジトリを選択
+3. 「Import」をクリック
+
+#### 2-3. プロジェクト設定
+
+1. **Framework Preset**：Next.jsが自動検出されます（変更不要）
+2. **Root Directory**：`./`（変更不要）
+3. **Build and Output Settings**：デフォルト設定のまま（変更不要）
+
+#### 2-4. 環境変数の設定
+
+1. 「Environment Variables」セクションを展開
+2. 以下の環境変数を追加（Firebase Consoleで取得した値を設定）：
+
+   - `NEXT_PUBLIC_FIREBASE_API_KEY` = `your_api_key`
+   - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` = `your_auth_domain`
+   - `NEXT_PUBLIC_FIREBASE_PROJECT_ID` = `your_project_id`
+   - `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` = `your_storage_bucket`
+   - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` = `your_messaging_sender_id`
+   - `NEXT_PUBLIC_FIREBASE_APP_ID` = `your_app_id`
+
+3. 各環境変数の適用環境を選択：
+   - **Production**、**Preview**、**Development** すべてにチェックを入れる
+
+#### 2-5. デプロイの実行
+
+1. 「Deploy」をクリック
+2. ビルドとデプロイが完了するまで待機（数分かかります）
+3. デプロイが完了すると、自動的にURLが生成されます
+
+#### 2-6. 今後のデプロイ
+
+GitHubにプッシュするだけで、自動的にVercelにデプロイされます：
+- `main`ブランチへのプッシュ → Production環境にデプロイ
+- その他のブランチへのプッシュ → Preview環境にデプロイ
+
+### 3. Firestoreセキュリティルールの設定（ブラウザ上で実施）
+
+1. Firebase Consoleの左メニューから「Firestore Database」を選択
+2. 「ルール」タブをクリック
+3. 以下のルールをコピー＆ペーストして「公開」をクリック：
 
 ```javascript
 rules_version = '2';
@@ -161,8 +222,7 @@ gachaetto/
 ├── package.json
 ├── tsconfig.json
 ├── tailwind.config.ts
-├── next.config.js
-└── vercel.json            # Vercel設定
+└── next.config.js
 ```
 
 ## 開発コマンド
