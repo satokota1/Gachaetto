@@ -7,7 +7,7 @@ import Header from '@/components/Header';
 import GachaConfigModal from '@/components/GachaConfigModal';
 import GachaResultModal from '@/components/GachaResultModal';
 import Link from 'next/link';
-import { GachaConfig, GachaResult, LoginBonusConfig } from '@/types/gacha';
+import { GachaConfig, GachaResult, LoginBonusConfig, GachaItem } from '@/types/gacha';
 import { executeGacha, validateProbabilities } from '@/lib/gacha';
 import {
   getGachaConfigFromStorage,
@@ -23,11 +23,23 @@ import {
   updateConsecutiveLoginDays,
 } from '@/lib/firebase/gacha';
 
+// デフォルトのガチャ設定
+const getDefaultGachaConfig = (): GachaConfig => ({
+  title: 'ダイエットガチャ',
+  items: [
+    { id: '1', name: '鶏むね肉とブロッコリー', probability: 75 },
+    { id: '2', name: 'サーモン', probability: 15 },
+    { id: '3', name: '赤身肉', probability: 5 },
+    { id: '4', name: 'ラーメン二郎', probability: 5 },
+  ],
+  dailyLimit: 10,
+});
+
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
-  const [gachaConfig, setGachaConfig] = useState<GachaConfig | null>(null);
+  const [gachaConfig, setGachaConfig] = useState<GachaConfig | null>(getDefaultGachaConfig());
   const [loginBonusConfig, setLoginBonusConfig] = useState<LoginBonusConfig | null>(null);
   const [gachaResult, setGachaResult] = useState<GachaResult | null>(null);
   const [todayGachaCount, setTodayGachaCount] = useState(0);
@@ -42,7 +54,8 @@ export default function Home() {
       const config = getGachaConfigFromStorage();
       const bonusConfig = getLoginBonusConfigFromStorage();
       const count = getTodayGachaCountFromStorage();
-      setGachaConfig(config);
+      // ストレージに設定がない場合はデフォルト値を使用
+      setGachaConfig(config || getDefaultGachaConfig());
       setLoginBonusConfig(bonusConfig);
       setTodayGachaCount(count);
       return;
@@ -55,9 +68,13 @@ export default function Home() {
         // ログインユーザーの場合、DBからデータを取得
         const userData = await getUserGachaData(user.uid);
         if (userData) {
-          setGachaConfig(userData.gachaConfig || null);
+          // DBに設定がない場合はデフォルト値を使用
+          setGachaConfig(userData.gachaConfig || getDefaultGachaConfig());
           setLoginBonusConfig(userData.loginBonusConfig || null);
           setTodayGachaCount(userData.todayGachaCount || 0);
+        } else {
+          // ユーザーデータがない場合はデフォルト値を使用
+          setGachaConfig(getDefaultGachaConfig());
         }
         // 連続ログイン日数を更新
         await updateConsecutiveLoginDays(user.uid);
@@ -66,7 +83,8 @@ export default function Home() {
         const config = getGachaConfigFromStorage();
         const bonusConfig = getLoginBonusConfigFromStorage();
         const count = getTodayGachaCountFromStorage();
-        setGachaConfig(config);
+        // ストレージに設定がない場合はデフォルト値を使用
+        setGachaConfig(config || getDefaultGachaConfig());
         setLoginBonusConfig(bonusConfig);
         setTodayGachaCount(count);
       }
@@ -164,6 +182,14 @@ export default function Home() {
           >
             {isSpinning ? '回転中...' : 'まわす'}
           </button>
+          
+          {gachaConfig && (
+            <div className="mt-4 text-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                残り回数: {remainingCount} / {gachaConfig.dailyLimit}
+              </p>
+            </div>
+          )}
 
           <p className="text-sm text-gray-500 dark:text-gray-400 text-center max-w-md">
             ガチャ設定や結果の保存、ログインボーナスを使用するにはログインが必要です。
