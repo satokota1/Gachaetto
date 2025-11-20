@@ -39,6 +39,7 @@ export default function GachaConfigModal({
   const [bonusGachaName, setBonusGachaName] = useState('');
   const [bonusItems, setBonusItems] = useState<GachaItem[]>([]);
   const [bonusDailyLimit, setBonusDailyLimit] = useState<number | undefined>(undefined);
+  const [originalProbabilities, setOriginalProbabilities] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (initialConfig) {
@@ -96,6 +97,27 @@ export default function GachaConfigModal({
         item.id === id ? { ...item, [field]: value } : item
       )
     );
+  };
+
+  // ボーナス確率を5%増減
+  const adjustBonusProbability = (id: string, delta: number) => {
+    setBonusItems(
+      bonusItems.map((item) => {
+        if (item.id === id) {
+          const newProbability = Math.max(0, Math.min(100, item.probability + delta));
+          return { ...item, probability: newProbability };
+        }
+        return item;
+      })
+    );
+  };
+
+  // 元の確率と比較して増加しているかチェック
+  const isProbabilityIncreased = (item: GachaItem): boolean => {
+    // 元のアイテムを名前で検索
+    const originalItem = items.find(i => i.name === item.name);
+    if (!originalItem) return false;
+    return item.probability > originalItem.probability;
   };
 
   const handleSave = async () => {
@@ -271,7 +293,27 @@ export default function GachaConfigModal({
             <div className="flex items-center justify-between mb-4">
               <label className="block text-sm font-medium">ログインボーナス設定</label>
               <button
-                onClick={() => setShowLoginBonus(!showLoginBonus)}
+                onClick={() => {
+                  if (!showLoginBonus) {
+                    // 有効化時：現在のガチャ設定を引き継ぐ
+                    const copiedItems = items.map(item => ({
+                      ...item,
+                      id: Date.now().toString() + Math.random().toString(36).substr(2, 9)
+                    }));
+                    setBonusItems(copiedItems);
+                    // 元の確率を記録
+                    const original: Record<string, number> = {};
+                    items.forEach(item => {
+                      original[item.id] = item.probability;
+                    });
+                    setOriginalProbabilities(original);
+                    // ボーナスガチャ名を自動設定
+                    if (!bonusGachaName) {
+                      setBonusGachaName(`${title} ボーナス`);
+                    }
+                  }
+                  setShowLoginBonus(!showLoginBonus);
+                }}
                 className={`px-4 py-2 rounded ${
                   showLoginBonus
                     ? 'bg-gray-200 dark:bg-gray-700'
@@ -319,36 +361,68 @@ export default function GachaConfigModal({
                     </button>
                   </div>
                   <div className="space-y-2">
-                    {bonusItems.map((item) => (
-                      <div key={item.id} className="flex gap-2 items-center">
-                        <input
-                          type="text"
-                          value={item.name}
-                          onChange={(e) => updateBonusItem(item.id, 'name', e.target.value)}
-                          className="flex-1 px-4 py-2 border rounded-lg"
-                          placeholder="項目名"
-                        />
-                        <input
-                          type="number"
-                          value={item.probability}
-                          onChange={(e) => updateBonusItem(item.id, 'probability', parseFloat(e.target.value) || 0)}
-                          className="w-24 px-4 py-2 border rounded-lg"
-                          placeholder="%"
-                          min="0"
-                          max="100"
-                          step="0.1"
-                        />
-                        <span className="w-8 text-sm">%</span>
-                        {bonusItems.length > 1 && (
-                          <button
-                            onClick={() => removeBonusItem(item.id)}
-                            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                          >
-                            削除
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                    {bonusItems.map((item) => {
+                      const isIncreased = isProbabilityIncreased(item);
+                      const originalItem = items.find(i => i.name === item.name);
+                      const originalProb = originalItem?.probability || 0;
+                      const diff = item.probability - originalProb;
+                      
+                      return (
+                        <div 
+                          key={item.id} 
+                          className={`flex gap-2 items-center p-2 rounded-lg ${
+                            isIncreased ? 'bg-yellow-100 dark:bg-yellow-900/30 border-2 border-yellow-400' : ''
+                          }`}
+                        >
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => updateBonusItem(item.id, 'name', e.target.value)}
+                            className="flex-1 px-4 py-2 border rounded-lg"
+                            placeholder="項目名"
+                          />
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => adjustBonusProbability(item.id, -5)}
+                              className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-bold"
+                              disabled={item.probability <= 0}
+                            >
+                              -5%
+                            </button>
+                            <div className="flex flex-col items-center min-w-[80px]">
+                              <span className={`text-lg font-bold ${isIncreased ? 'text-yellow-600 dark:text-yellow-400' : ''}`}>
+                                {item.probability}%
+                              </span>
+                              {isIncreased && (
+                                <span className="text-xs text-yellow-600 dark:text-yellow-400 font-bold animate-pulse">
+                                  ボーナス確変！！
+                                </span>
+                              )}
+                              {diff !== 0 && (
+                                <span className={`text-xs ${diff > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {diff > 0 ? '+' : ''}{diff.toFixed(1)}%
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => adjustBonusProbability(item.id, 5)}
+                              className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-bold"
+                              disabled={item.probability >= 100}
+                            >
+                              +5%
+                            </button>
+                          </div>
+                          {bonusItems.length > 1 && (
+                            <button
+                              onClick={() => removeBonusItem(item.id)}
+                              className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                            >
+                              削除
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                   <div className="mt-2 text-sm text-gray-600">
                     合計: {bonusTotalProbability.toFixed(1)}% {bonusTotalProbability === 100 ? '✓' : '⚠'}
