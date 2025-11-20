@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { User } from 'firebase/auth';
-import { signInWithEmail, logout } from '@/lib/firebase/auth';
+import { signInWithUsername, logout } from '@/lib/firebase/auth';
 
 interface HeaderProps {
   user: User | null;
@@ -11,7 +11,7 @@ interface HeaderProps {
 
 export default function Header({ user, onAuthChange }: HeaderProps) {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -22,23 +22,21 @@ export default function Header({ user, onAuthChange }: HeaderProps) {
     setIsLoading(true);
 
     try {
-      if (!email.trim() || !password.trim()) {
-        setError('メールアドレスとパスワードを入力してください');
+      if (!username.trim() || !password.trim()) {
+        setError('ユーザー名とパスワードを入力してください');
         setIsLoading(false);
         return;
       }
 
-      const user = await signInWithEmail(email.trim(), password);
+      const user = await signInWithUsername(username.trim(), password);
       onAuthChange(user);
       setIsLoginModalOpen(false);
-      setEmail('');
+      setUsername('');
       setPassword('');
     } catch (error: any) {
       console.error('ログインエラー:', error);
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        setError('メールアドレスまたはパスワードが正しくありません');
-      } else if (error.code === 'auth/invalid-email') {
-        setError('メールアドレスの形式が正しくありません');
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.message === 'ユーザー名またはパスワードが正しくありません') {
+        setError('ユーザー名またはパスワードが正しくありません');
       } else {
         setError('ログインに失敗しました');
       }
@@ -90,7 +88,7 @@ export default function Header({ user, onAuthChange }: HeaderProps) {
               <button
                 onClick={() => {
                   setIsLoginModalOpen(false);
-                  setEmail('');
+                  setUsername('');
                   setPassword('');
                   setError('');
                 }}
@@ -103,14 +101,14 @@ export default function Header({ user, onAuthChange }: HeaderProps) {
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  メールアドレス
+                  ユーザー名
                 </label>
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-                  placeholder="example@email.com"
+                  placeholder="ユーザー名"
                   required
                   disabled={isLoading}
                 />

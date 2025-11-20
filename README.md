@@ -161,6 +161,12 @@ service cloud.firestore {
     match /gachaResults/{resultId} {
       allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
     }
+    
+    // ユーザー名マッピング（全員が読み取り可能、認証済みユーザーのみ書き込み可能）
+    match /usernameMappings/{username} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
   }
 }
 ```

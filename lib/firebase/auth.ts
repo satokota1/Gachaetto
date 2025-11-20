@@ -6,9 +6,35 @@ import {
   User,
   onAuthStateChanged 
 } from 'firebase/auth';
-import { auth, initializeFirebase } from './config';
+import { auth, initializeFirebase, db } from './config';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
-// メールアドレスとパスワードでログイン
+// ユーザー名とパスワードでログイン
+export const signInWithUsername = async (username: string, password: string): Promise<User> => {
+  // 初期化を試みる
+  const { auth: authInstance, db: dbInstance } = initializeFirebase();
+  if (!authInstance || !dbInstance) {
+    throw new Error('Firebase is not initialized. Please check your environment variables.');
+  }
+
+  // Firestoreからユーザー名でメールアドレスを取得
+  const usernameMappingsRef = collection(dbInstance, 'usernameMappings');
+  const q = query(usernameMappingsRef, where('username', '==', username.toLowerCase().trim()));
+  const querySnapshot = await getDocs(q);
+
+  if (querySnapshot.empty) {
+    throw new Error('ユーザー名またはパスワードが正しくありません');
+  }
+
+  const userData = querySnapshot.docs[0].data();
+  const email = userData.email;
+
+  // メールアドレスとパスワードでFirebase Authenticationにログイン
+  const result = await signInWithEmailAndPassword(authInstance, email, password);
+  return result.user;
+};
+
+// メールアドレスとパスワードでログイン（後方互換性のため残す）
 export const signInWithEmail = async (email: string, password: string): Promise<User> => {
   // 初期化を試みる
   const { auth: authInstance } = initializeFirebase();
