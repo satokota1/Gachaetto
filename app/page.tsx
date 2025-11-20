@@ -315,6 +315,16 @@ function HomeContent() {
             </div>
           )}
 
+          <div className="mt-4 px-4 py-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+            <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 text-center mb-2">
+              🎮 試しにログインしてみたい方向けアカウント
+            </p>
+            <div className="text-sm text-yellow-700 dark:text-yellow-300 text-center space-y-1">
+              <p>アカウントID: <span className="font-mono font-semibold">gatya</span></p>
+              <p>パスワード: <span className="font-mono font-semibold">test</span></p>
+            </div>
+          </div>
+
           <p className="text-sm text-gray-500 dark:text-gray-400 text-center max-w-md">
             ガチャ設定や結果の保存、ログインボーナスを使用するにはログインが必要です。
           </p>

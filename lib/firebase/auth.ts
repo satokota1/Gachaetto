@@ -9,11 +9,15 @@ import {
 import { auth, initializeFirebase, db } from './config';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
-// 4桁のパスワードを6文字以上に変換（Firebaseの最小要件を満たすため）
-// 4桁の数字の場合、末尾に"00"を追加して6文字にする
+// パスワードを6文字以上に変換（Firebaseの最小要件を満たすため）
+// 4桁の数字または4文字の文字列の場合、末尾に"00"を追加して6文字以上にする
 const normalizePassword = (password: string): string => {
   // 4桁の数字のみの場合、末尾に"00"を追加
   if (/^\d{4}$/.test(password)) {
+    return password + '00';
+  }
+  // 4文字の文字列の場合も、末尾に"00"を追加
+  if (password.length === 4) {
     return password + '00';
   }
   // それ以外はそのまま返す
