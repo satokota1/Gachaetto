@@ -7,6 +7,7 @@ import { auth, initializeFirebase } from '@/lib/firebase/config';
 import Header from '@/components/Header';
 import GachaConfigModal from '@/components/GachaConfigModal';
 import GachaResultModal from '@/components/GachaResultModal';
+import Modal from '@/components/Modal';
 import Link from 'next/link';
 import { GachaConfig, GachaResult, LoginBonusConfig, GachaItem } from '@/types/gacha';
 import { executeGacha, validateProbabilities } from '@/lib/gacha';
@@ -42,6 +43,7 @@ function HomeContent() {
   const [user, setUser] = useState<User | null>(null);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [gachaConfig, setGachaConfig] = useState<GachaConfig | null>(getDefaultGachaConfig());
   const [loginBonusConfig, setLoginBonusConfig] = useState<LoginBonusConfig | null>(null);
   const [gachaResult, setGachaResult] = useState<GachaResult | null>(null);
@@ -235,9 +237,12 @@ function HomeContent() {
     }
   };
 
-  const handleShare = async () => {
+  const handleShare = () => {
     if (!gachaConfig) return;
-    
+    setIsShareModalOpen(true);
+  };
+
+  const handleCopyUrl = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
       alert('共有URLをクリップボードにコピーしました！');
@@ -331,6 +336,65 @@ function HomeContent() {
         gachaConfig={gachaConfig}
         remainingCount={remainingCount}
       />
+
+      <Modal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        title="ガチャ設定を共有"
+      >
+        {gachaConfig && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-200">
+                共有される設定内容
+              </h3>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-3">
+                <div>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">タイトル:</span>
+                  <span className="ml-2 text-gray-900 dark:text-gray-100">{gachaConfig.title}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">日次制限:</span>
+                  <span className="ml-2 text-gray-900 dark:text-gray-100">{gachaConfig.dailyLimit}回</span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700 dark:text-gray-300 block mb-2">アイテム一覧:</span>
+                  <ul className="list-disc list-inside space-y-1 ml-2">
+                    {gachaConfig.items.map((item, index) => (
+                      <li key={index} className="text-gray-900 dark:text-gray-100">
+                        {item.name} - {item.probability}%
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-200">
+                共有URL
+              </h3>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={shareUrl}
+                  readOnly
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                />
+                <button
+                  onClick={handleCopyUrl}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition font-semibold"
+                >
+                  コピー
+                </button>
+              </div>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                このURLを共有すると、上記の設定でガチャを回すことができます。
+              </p>
+            </div>
+          </div>
+        )}
+      </Modal>
     </main>
   );
 }
