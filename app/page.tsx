@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { auth, initializeFirebase } from '@/lib/firebase/config';
@@ -36,7 +36,7 @@ const getDefaultGachaConfig = (): GachaConfig => ({
   dailyLimit: 10,
 });
 
-export default function Home() {
+function HomeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -332,5 +332,17 @@ export default function Home() {
         remainingCount={remainingCount}
       />
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen flex flex-col items-center justify-center">
+        <div className="text-lg">読み込み中...</div>
+      </main>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }
