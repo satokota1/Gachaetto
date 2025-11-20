@@ -50,6 +50,7 @@ function HomeContent() {
   const [todayGachaCount, setTodayGachaCount] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
   const [shareUrl, setShareUrl] = useState<string>('');
+  const [consecutiveLoginDays, setConsecutiveLoginDays] = useState<number>(0);
 
   // URLクエリパラメータからガチャ設定を読み込む
   const loadConfigFromUrl = useCallback((): GachaConfig | null => {
@@ -141,12 +142,15 @@ function HomeContent() {
           setGachaConfig(userData.gachaConfig || getDefaultGachaConfig());
           setLoginBonusConfig(userData.loginBonusConfig || null);
           setTodayGachaCount(userData.todayGachaCount || 0);
+          setConsecutiveLoginDays(userData.consecutiveLoginDays || 0);
         } else {
           // ユーザーデータがない場合はデフォルト値を使用
           setGachaConfig(getDefaultGachaConfig());
+          setConsecutiveLoginDays(0);
         }
         // 連続ログイン日数を更新
-        await updateConsecutiveLoginDays(user.uid);
+        const updatedDays = await updateConsecutiveLoginDays(user.uid);
+        setConsecutiveLoginDays(updatedDays);
       } else {
         // URLから設定がある場合はそれを優先
         if (urlConfig) {
@@ -312,6 +316,37 @@ function HomeContent() {
               <p className="text-sm text-blue-700 dark:text-blue-300 text-center">
                 💡 <span className="font-semibold">共有機能:</span> 共有ボタンを押すと、現在のガチャ設定（タイトル・アイテム・確率・日次制限）をURLで共有できます
               </p>
+            </div>
+          )}
+
+          {user && loginBonusConfig && (
+            <div className="mt-4 px-4 py-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+              <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 text-center mb-2">
+                🎁 ログインボーナス進捗
+              </p>
+              <div className="text-sm text-purple-700 dark:text-purple-300 text-center space-y-1">
+                <p>
+                  連続ログイン日数: <span className="font-bold text-lg">{consecutiveLoginDays}</span> 日
+                </p>
+                <p>
+                  必要日数: <span className="font-semibold">{loginBonusConfig.requiredDays}</span> 日
+                </p>
+                <div className="mt-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                  <div
+                    className="bg-purple-500 h-3 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${Math.min((consecutiveLoginDays / loginBonusConfig.requiredDays) * 100, 100)}%`,
+                    }}
+                  />
+                </div>
+                <p className="text-xs mt-1">
+                  {consecutiveLoginDays >= loginBonusConfig.requiredDays ? (
+                    <span className="text-green-600 dark:text-green-400 font-bold">✨ ボーナスガチャが利用可能です！</span>
+                  ) : (
+                    <span>あと {loginBonusConfig.requiredDays - consecutiveLoginDays} 日でボーナスガチャが利用可能になります</span>
+                  )}
+                </p>
+              </div>
             </div>
           )}
 
