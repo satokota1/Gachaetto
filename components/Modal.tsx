@@ -31,6 +31,7 @@ export default function Modal({ isOpen, onClose, children, title }: ModalProps) 
       <div
         className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         {title && (
           <div className="flex items-center justify-between p-6 border-b">
