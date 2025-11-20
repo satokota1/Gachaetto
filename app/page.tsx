@@ -54,41 +54,60 @@ function HomeContent() {
   const [loginDaysIncreased, setLoginDaysIncreased] = useState<number | null>(null);
 
   // URLクエリパラメータからガチャ設定を読み込む
-  const loadConfigFromUrl = useCallback((): GachaConfig | null => {
+  const loadConfigFromUrl = useCallback((): { config: GachaConfig | null; bonusConfig: LoginBonusConfig | null } => {
     const configParam = searchParams.get('config');
-    if (!configParam) return null;
+    if (!configParam) return { config: null, bonusConfig: null };
 
     try {
       const decoded = decodeURIComponent(configParam);
-      const config = JSON.parse(decoded);
+      const data = JSON.parse(decoded);
       
       // バリデーション
-      if (config.title && config.items && Array.isArray(config.items) && config.dailyLimit) {
+      if (data.title && data.items && Array.isArray(data.items) && data.dailyLimit) {
         // IDを再生成
-        const itemsWithIds = config.items.map((item: any, index: number) => ({
+        const itemsWithIds = data.items.map((item: any, index: number) => ({
           id: (index + 1).toString(),
           name: item.name || '',
           probability: item.probability || 0,
         }));
         
-        return {
-          title: config.title,
+        const config: GachaConfig = {
+          title: data.title,
           items: itemsWithIds,
-          dailyLimit: config.dailyLimit,
+          dailyLimit: data.dailyLimit,
         };
+        
+        // ボーナス設定がある場合は読み込む
+        let bonusConfig: LoginBonusConfig | null = null;
+        if (data.bonusConfig) {
+          const bonusItemsWithIds = data.bonusConfig.bonusItems.map((item: any, index: number) => ({
+            id: (index + 1).toString(),
+            name: item.name || '',
+            probability: item.probability || 0,
+          }));
+          
+          bonusConfig = {
+            requiredDays: data.bonusConfig.requiredDays,
+            bonusGachaName: data.bonusConfig.bonusGachaName,
+            bonusItems: bonusItemsWithIds,
+            bonusDailyLimit: data.bonusConfig.bonusDailyLimit,
+          };
+        }
+        
+        return { config, bonusConfig };
       }
     } catch (error) {
       console.error('Failed to parse config from URL:', error);
     }
     
-    return null;
+    return { config: null, bonusConfig: null };
   }, [searchParams]);
 
   // ガチャ設定をURLにエンコード
-  const generateShareUrl = (config: GachaConfig): string => {
+  const generateShareUrl = (config: GachaConfig, bonusConfig?: LoginBonusConfig | null): string => {
     if (typeof window === 'undefined') return '';
     
-    const shareableConfig = {
+    const shareableConfig: any = {
       title: config.title,
       items: config.items.map(item => ({
         name: item.name,
@@ -97,15 +116,31 @@ function HomeContent() {
       dailyLimit: config.dailyLimit,
     };
     
+    // ボーナス設定がある場合は含める
+    if (bonusConfig) {
+      shareableConfig.bonusConfig = {
+        requiredDays: bonusConfig.requiredDays,
+        bonusGachaName: bonusConfig.bonusGachaName,
+        bonusItems: bonusConfig.bonusItems.map(item => ({
+          name: item.name,
+          probability: item.probability,
+        })),
+        bonusDailyLimit: bonusConfig.bonusDailyLimit,
+      };
+    }
+    
     const encoded = encodeURIComponent(JSON.stringify(shareableConfig));
     return `${window.location.origin}?config=${encoded}`;
   };
 
   useEffect(() => {
     // URLから設定を読み込む（最優先）
-    const urlConfig = loadConfigFromUrl();
-    if (urlConfig) {
-      setGachaConfig(urlConfig);
+    const urlData = loadConfigFromUrl();
+    if (urlData.config) {
+      setGachaConfig(urlData.config);
+      if (urlData.bonusConfig) {
+        setLoginBonusConfig(urlData.bonusConfig);
+      }
       // URLをクリーンアップ（オプション）
       // router.replace('/');
     }
@@ -115,8 +150,8 @@ function HomeContent() {
     
     // Firebaseが初期化されていない場合は、ストレージからデータを取得
     if (!authInstance) {
-      const config = urlConfig || getGachaConfigFromStorage();
-      const bonusConfig = getLoginBonusConfigFromStorage();
+      const config = urlData.config || getGachaConfigFromStorage();
+      const bonusConfig = urlData.bonusConfig || getLoginBonusConfigFromStorage();
       const count = getTodayGachaCountFromStorage();
       // ストレージに設定がない場合はデフォルト値を使用
       setGachaConfig(config || getDefaultGachaConfig());
@@ -130,8 +165,11 @@ function HomeContent() {
       setUser(user);
       if (user) {
         // URLから設定がある場合はそれを優先
-        if (urlConfig) {
-          setGachaConfig(urlConfig);
+        if (urlData.config) {
+          setGachaConfig(urlData.config);
+          if (urlData.bonusConfig) {
+            setLoginBonusConfig(urlData.bonusConfig);
+          }
           setTodayGachaCount(0);
           return;
         }
@@ -154,8 +192,11 @@ function HomeContent() {
         setConsecutiveLoginDays(updatedDays);
       } else {
         // URLから設定がある場合はそれを優先
-        if (urlConfig) {
-          setGachaConfig(urlConfig);
+        if (urlData.config) {
+          setGachaConfig(urlData.config);
+          if (urlData.bonusConfig) {
+            setLoginBonusConfig(urlData.bonusConfig);
+          }
           setTodayGachaCount(0);
           return;
         }
@@ -177,9 +218,9 @@ function HomeContent() {
   // ガチャ設定が変更されたら共有URLを更新
   useEffect(() => {
     if (gachaConfig) {
-      setShareUrl(generateShareUrl(gachaConfig));
+      setShareUrl(generateShareUrl(gachaConfig, loginBonusConfig));
     }
-  }, [gachaConfig]);
+  }, [gachaConfig, loginBonusConfig]);
 
   const handleSpin = async () => {
     if (!gachaConfig) {
@@ -445,6 +486,39 @@ function HomeContent() {
                     ))}
                   </ul>
                 </div>
+                {loginBonusConfig && (
+                  <div className="mt-4 pt-4 border-t border-gray-300 dark:border-gray-600">
+                    <div className="font-semibold text-purple-700 dark:text-purple-300 mb-2">
+                      🎁 ログインボーナス設定
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">必要ログイン日数:</span>
+                        <span className="ml-2 text-gray-900 dark:text-gray-100">{loginBonusConfig.requiredDays}日</span>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">ボーナスガチャ名:</span>
+                        <span className="ml-2 text-gray-900 dark:text-gray-100">{loginBonusConfig.bonusGachaName}</span>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700 dark:text-gray-300 block mb-1">ボーナスアイテム一覧:</span>
+                        <ul className="list-disc list-inside space-y-1 ml-2">
+                          {loginBonusConfig.bonusItems.map((item, index) => (
+                            <li key={index} className="text-gray-900 dark:text-gray-100">
+                              {item.name} - {item.probability}%
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      {loginBonusConfig.bonusDailyLimit && (
+                        <div>
+                          <span className="font-medium text-gray-700 dark:text-gray-300">ボーナス日次制限:</span>
+                          <span className="ml-2 text-gray-900 dark:text-gray-100">{loginBonusConfig.bonusDailyLimit}回</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
