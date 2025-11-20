@@ -99,19 +99,6 @@ export default function GachaConfigModal({
     );
   };
 
-  // ボーナス確率を5%増減
-  const adjustBonusProbability = (id: string, delta: number) => {
-    setBonusItems(
-      bonusItems.map((item) => {
-        if (item.id === id) {
-          const newProbability = Math.max(0, Math.min(100, item.probability + delta));
-          return { ...item, probability: newProbability };
-        }
-        return item;
-      })
-    );
-  };
-
   // 元の確率と比較して増加しているかチェック
   const isProbabilityIncreased = (item: GachaItem): boolean => {
     // 元のアイテムを名前で検索
@@ -381,18 +368,19 @@ export default function GachaConfigModal({
                             className="flex-1 px-4 py-2 border rounded-lg"
                             placeholder="項目名"
                           />
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => adjustBonusProbability(item.id, -5)}
-                              className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-bold"
-                              disabled={item.probability <= 0}
-                            >
-                              -5%
-                            </button>
-                            <div className="flex flex-col items-center min-w-[80px]">
-                              <span className={`text-lg font-bold ${isIncreased ? 'text-yellow-600 dark:text-yellow-400' : ''}`}>
-                                {item.probability}%
-                              </span>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              value={item.probability}
+                              onChange={(e) => updateBonusItem(item.id, 'probability', parseFloat(e.target.value) || 0)}
+                              className="w-24 px-4 py-2 border rounded-lg"
+                              placeholder="%"
+                              min="0"
+                              max="100"
+                              step="0.1"
+                            />
+                            <span className="w-8 text-sm">%</span>
+                            <div className="flex flex-col items-center min-w-[100px]">
                               {isIncreased && (
                                 <span className="text-xs text-yellow-600 dark:text-yellow-400 font-bold animate-pulse">
                                   ボーナス確変！！
@@ -404,13 +392,6 @@ export default function GachaConfigModal({
                                 </span>
                               )}
                             </div>
-                            <button
-                              onClick={() => adjustBonusProbability(item.id, 5)}
-                              className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-bold"
-                              disabled={item.probability >= 100}
-                            >
-                              +5%
-                            </button>
                           </div>
                           {bonusItems.length > 1 && (
                             <button
