@@ -41,11 +41,8 @@ if (typeof window !== 'undefined' && isFirebaseConfigured) {
 }
 
 // 型安全なエクスポート
-// クライアントサイド（'use client'コンポーネント）では常に定義されている
-// ビルド時（サーバーサイド）では undefined になる可能性があるが、'use client'コンポーネントでは使用されない
-// 型アサーションを使用して、クライアントサイドでは常に定義されていることを保証
-export const dbInstance = db as Firestore;
-export const authInstance = auth as Auth;
-export { dbInstance as db, authInstance as auth };
+// クライアントサイドで環境変数が設定されている場合のみ定義される
+// 使用する側で undefined チェックが必要
+export { db, auth };
 export default app;
 

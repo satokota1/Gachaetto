@@ -34,6 +34,17 @@ export default function Home() {
   const [isSpinning, setIsSpinning] = useState(false);
 
   useEffect(() => {
+    // Firebaseが初期化されていない場合は、ストレージからデータを取得
+    if (!auth) {
+      const config = getGachaConfigFromStorage();
+      const bonusConfig = getLoginBonusConfigFromStorage();
+      const count = getTodayGachaCountFromStorage();
+      setGachaConfig(config);
+      setLoginBonusConfig(bonusConfig);
+      setTodayGachaCount(count);
+      return;
+    }
+
     // 認証状態の監視
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);

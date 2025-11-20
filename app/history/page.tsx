@@ -14,6 +14,14 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Firebaseが初期化されていない場合は、ストレージからデータを取得
+    if (!auth) {
+      const results = getGachaHistoryFromStorage();
+      setHistory(results);
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       setLoading(true);

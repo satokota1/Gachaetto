@@ -16,12 +16,21 @@ import {
 import { db } from './config';
 import { GachaConfig, GachaResult, UserGachaData, LoginBonusConfig } from '@/types/gacha';
 
+// dbが初期化されているかチェック
+const ensureDb = () => {
+  if (!db) {
+    throw new Error('Firebase is not initialized. Please check your environment variables.');
+  }
+  return db;
+};
+
 // ユーザーのガチャ設定を保存
 export const saveGachaConfig = async (
   userId: string, 
   config: GachaConfig
 ): Promise<string> => {
-  const userGachaRef = doc(db, 'userGachaData', userId);
+  const firestoreDb = ensureDb();
+  const userGachaRef = doc(firestoreDb, 'userGachaData', userId);
   const userData = await getDoc(userGachaRef);
   
   const data: Partial<UserGachaData> = {
@@ -53,7 +62,8 @@ export const saveLoginBonusConfig = async (
   userId: string,
   loginBonusConfig: LoginBonusConfig
 ): Promise<void> => {
-  const userGachaRef = doc(db, 'userGachaData', userId);
+  const firestoreDb = ensureDb();
+  const userGachaRef = doc(firestoreDb, 'userGachaData', userId);
   await updateDoc(userGachaRef, {
     loginBonusConfig,
   });
@@ -61,7 +71,8 @@ export const saveLoginBonusConfig = async (
 
 // ユーザーのガチャ設定を取得
 export const getUserGachaData = async (userId: string): Promise<UserGachaData | null> => {
-  const userGachaRef = doc(db, 'userGachaData', userId);
+  const firestoreDb = ensureDb();
+  const userGachaRef = doc(firestoreDb, 'userGachaData', userId);
   const docSnap = await getDoc(userGachaRef);
   
   if (!docSnap.exists()) {
@@ -81,7 +92,8 @@ export const saveGachaResult = async (
   userId: string,
   result: Omit<GachaResult, 'id' | 'timestamp'>
 ): Promise<string> => {
-  const resultsRef = collection(db, 'gachaResults');
+  const firestoreDb = ensureDb();
+  const resultsRef = collection(firestoreDb, 'gachaResults');
   const docRef = await addDoc(resultsRef, {
     ...result,
     userId,
@@ -95,7 +107,8 @@ export const getUserGachaHistory = async (
   userId: string,
   limit: number = 50
 ): Promise<GachaResult[]> => {
-  const resultsRef = collection(db, 'gachaResults');
+  const firestoreDb = ensureDb();
+  const resultsRef = collection(firestoreDb, 'gachaResults');
   const q = query(
     resultsRef,
     where('userId', '==', userId),
@@ -119,7 +132,8 @@ export const getUserGachaHistory = async (
 
 // 連続ログイン日数を更新
 export const updateConsecutiveLoginDays = async (userId: string): Promise<number> => {
-  const userGachaRef = doc(db, 'userGachaData', userId);
+  const firestoreDb = ensureDb();
+  const userGachaRef = doc(firestoreDb, 'userGachaData', userId);
   const userData = await getUserGachaData(userId);
   
   if (!userData) {
@@ -161,7 +175,8 @@ export const updateConsecutiveLoginDays = async (userId: string): Promise<number
 
 // 今日のガチャ回数を更新
 export const updateTodayGachaCount = async (userId: string): Promise<number> => {
-  const userGachaRef = doc(db, 'userGachaData', userId);
+  const firestoreDb = ensureDb();
+  const userGachaRef = doc(firestoreDb, 'userGachaData', userId);
   const userData = await getUserGachaData(userId);
   
   if (!userData) {
